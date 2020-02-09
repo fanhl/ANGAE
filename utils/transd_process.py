@@ -40,7 +40,7 @@ def load_data(dataset_str): # {'pubmed', 'citeseer', 'cora'}
     names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
     objects = []
     for i in range(len(names)):
-        with open("../data/ind.{}.{}".format(dataset_str, names[i]), 'rb') as f:
+        with open("./data/ind.{}.{}".format(dataset_str, names[i]), 'rb') as f:
             if sys.version_info > (3, 0):
                 objects.append(pkl.load(f, encoding='latin1'))
             else:
@@ -109,67 +109,3 @@ def construct_traget_neighbors(nx_G, X):
             temp = np.mean(temp, axis=0)
             X_target[node] = temp
     return X_target    
-
-
-def load_nell_data(DATASET='nell'):
-    NAMES = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
-    OBJECTS = []
-
-    for i in range(len(NAMES)):
-        OBJECTS.append(cPickle.load(open('../data/ind.{}.{}'.format(DATASET, NAMES[i]), 'rb',),encoding='latin1'))
-        
-    x, y, tx, ty, allx, ally, graph = tuple(OBJECTS)
-    test_idx_reorder = parse_index_file("../data/ind.{}.test.index".format(DATASET))
-    exclu_rang = []
-    for i in range(8922, 65755):
-        if i not in test_idx_reorder:
-            exclu_rang.append(i)
-
-    # get the features:X
-    allx_v_tx = sp.vstack((allx, tx)).tolil()
-    _x = sp.lil_matrix(np.zeros((9891, 55864)))
-
-    up_features = sp.hstack((allx_v_tx, _x))
-
-    _x = sp.lil_matrix(np.zeros((55864, 5414)))
-    _y = sp.identity(55864, format='lil')
-    down_features = sp.hstack((_x, _y))
-    features = sp.vstack((up_features, down_features)).tolil()
-    features[test_idx_reorder + exclu_rang, :] = features[range(8922, 65755), :]
-    print("Feature matrix:" + str(features.shape))
-
-    # get the labels: y
-    up_labels = np.vstack((ally, ty))
-    down_labels = np.zeros((55864, 210))
-    labels = np.vstack((up_labels, down_labels))
-    labels[test_idx_reorder + exclu_rang, :] = labels[range(8922, 65755), :]
-    print("Label matrix:" + str(labels.shape))
-
-    # print np.sort(graph.get(17493))
-
-    # get the adjcent matrix: A
-    # adj = nx.to_numpy_matrix(nx.from_dict_of_lists(graph))
-    G = nx.from_dict_of_lists(graph)
-    adj = nx.adjacency_matrix(G)
-    print("Adjcent matrix:" + str(adj.shape))
-
-    # test, validation, train
-    idx_test = test_idx_reorder
-    idx_train = range(len(y))
-    idx_val = range(len(y), len(y) + 500)
-
-    train_mask = sample_mask(idx_train, labels.shape[0])
-    val_mask = sample_mask(idx_val, labels.shape[0])
-    test_mask = sample_mask(idx_test, labels.shape[0])
-
-    y_train = np.zeros(labels.shape)
-    y_val = np.zeros(labels.shape)
-    y_test = np.zeros(labels.shape)
-    y_train[train_mask, :] = labels[train_mask, :]
-    y_val[val_mask, :] = labels[val_mask, :]
-    y_test[test_mask, :] = labels[test_mask, :]
-
-    # # record the intermedia result for saving time
-
-    #return adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask
-    return adj, features.todense(), labels, idx_train, idx_val, idx_test
